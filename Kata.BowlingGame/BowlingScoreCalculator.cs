@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Kata.BowlingGame
 {
@@ -10,18 +8,43 @@ namespace Kata.BowlingGame
         Spare,
         Strike
     }
-    public static class BowlingScoreCalculator
+    public class BowlingScoreCalculator 
     {
-        
-        public static ushort CalculateScore(string gamescore)
+        private ushort _score = 0;
+        private Node _currentNode = null;
+        private string _gameScore;
+
+        public BowlingScoreCalculator(string gameScore)
         {
-            gamescore = gamescore.ToLower().Replace('-', '0');
+            _gameScore = gameScore;
+            BuildGameScoreNodes();
+        }
 
-            Node firstNode = null;
-            Node prevNode = null;
-            foreach (var ch in gamescore)
+        public ushort CalculateScore()
+        {           
+            ushort frameCount = 0;
+            while (frameCount != 10)
             {
+                frameCount++;
+                if (_currentNode.Type == StrikeType.Number)
+                {
+                    CalculateRegularThrow();
+                }
+                else
+                {
+                    CalculateStrikeThrow();
+                }
+            }
 
+            return _score;
+        }
+
+        private void BuildGameScoreNodes()
+        {
+            _gameScore = _gameScore.ToLower().Replace('-', '0');
+            Node prevNode = null;
+            foreach (var ch in _gameScore)
+            {
                 ushort numberValue;
                 StrikeType type;
                 if (UInt16.TryParse(ch.ToString(), out numberValue))
@@ -39,12 +62,7 @@ namespace Kata.BowlingGame
                     numberValue = 10;
                 }
 
-                Node node = new Node()
-                {
-                    Value = numberValue,
-                    Type = type,
-                    PrevNode = prevNode,
-                };
+                Node node = new Node(numberValue, type, prevNode){};
 
                 if (prevNode != null)
                 {
@@ -52,48 +70,33 @@ namespace Kata.BowlingGame
                 }
                 else
                 {
-                    firstNode = node;
+                    _currentNode = node;
                 }
 
                 prevNode = node;
             }
+        }
 
-            ushort score = 0;
-            ushort frameCount = 0;
-            Node currentNode = firstNode;
-            while (true)
+        private void CalculateRegularThrow()
+        {
+            if (_currentNode.NextNode.Type == StrikeType.Spare)
             {
-                frameCount++;
-                if (currentNode.Type == StrikeType.Number)
-                {
-                    if (currentNode.NextNode.Type == StrikeType.Spare)
-                    {
-                        score += (ushort)(currentNode.Value + currentNode.NextNode.Value + currentNode.NextNode.NextNode.Value);
-
-                        if (currentNode.NextNode.NextNode.NextNode == null)
-                            break;
-                    }
-                    else
-                    {
-                        score += (ushort)(currentNode.Value + currentNode.NextNode.Value);
-
-                        if (currentNode.NextNode.NextNode == null)
-                            break;
-                    }
-                    currentNode = currentNode.NextNode.NextNode;
-                }
-                else
-                {
-                    score += (ushort)(currentNode.Value + currentNode.NextNode.Value + currentNode.NextNode.NextNode.Value);
-
-                    if (currentNode.NextNode.NextNode.NextNode == null && frameCount != 9)
-                        break;
-
-                    currentNode = currentNode.NextNode;
-                }
+                AddThrowScore(_currentNode.NextNode.NextNode.Value);
             }
-
-            return score;
+            else
+            {
+                AddThrowScore();
+            }
+            _currentNode = _currentNode.NextNode.NextNode;
+        }
+        private void CalculateStrikeThrow()
+        {
+            AddThrowScore(_currentNode.NextNode.NextNode.Value);
+            _currentNode = _currentNode.NextNode;
+        }
+        private void AddThrowScore(ushort extraScore = 0)
+        {
+            _score += (ushort)(_currentNode.Value + _currentNode.NextNode.Value + extraScore);
         }
     }
 }
